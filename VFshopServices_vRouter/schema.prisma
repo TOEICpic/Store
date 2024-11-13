@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model orders {
+  order_id      Int                  @id @default(autoincrement())
+  user_id       Int?
+  address_id    Int?
+  order_status  orders_order_status? @default(Pending)
+  total_amount  Decimal              @db.Decimal(10, 2)
+  shipping_cost Decimal?             @default(0.00) @db.Decimal(10, 2)
+  created_at    DateTime?            @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?            @default(now()) @db.Timestamp(0)
+  order_items   order_items[]
+  users         users?               @relation(fields: [user_id], references: [user_id], onUpdate: NoAction, map: "orders_ibfk_1")
+  addresses     addresses?           @relation(fields: [address_id], references: [address_id], onUpdate: NoAction, map: "orders_ibfk_2")
+  payments      payments[]
+
+  @@index([address_id], map: "address_id")
+  @@index([user_id], map: "user_id")
+}
+
+model payments {
+  payment_id       Int                      @id @default(autoincrement())
+  order_id         Int?
+  payment_method   payments_payment_method
+  payment_status   payments_payment_status? @default(Pending)
+  amount           Decimal                  @db.Decimal(10, 2)
+  transaction_date DateTime?                @default(now()) @db.Timestamp(0)
+  orders           orders?                  @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "payments_ibfk_1")
+
+  @@index([order_id], map: "order_id")
+}
+
+model users {
+  user_id       Int                @id @default(autoincrement())
+  first_name    String             @db.VarChar(50)
+  last_name     String             @db.VarChar(50)
+  email         String?            @unique(map: "email") @db.VarChar(100)
+  phone         String?            @unique(map: "phone") @db.VarChar(15)
+  role          String             @db.VarChar(50)
+  password_hash String             @db.VarChar(255)
+  login_method  users_login_method
+  created_at    DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at    DateTime?          @default(now()) @db.Timestamp(0)
+  addresses     addresses[]
+  carts         carts[]
+  orders        orders[]
+  sessions      sessions[]
+}
+
+model addresses {
+  address_id    Int       @id @default(autoincrement())
+  user_id       Int
+  label         String?   @db.VarChar(50)
+  address_line1 String    @db.VarChar(255)
+  address_line2 String?   @db.VarChar(255)
+  city          String    @db.VarChar(100)
+  postal_code   String    @db.VarChar(10)
+  country       String    @db.VarChar(100)
+  phone         String?   @db.VarChar(15)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+  users         users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "addresses_ibfk_1")
+  orders        orders[]
+
+  @@index([user_id], map: "user_id")
+}
+
+model carts {
+  cart_id    Int       @id @default(autoincrement())
+  user_id    Int
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+  users      users     @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "carts_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model categories {
+  category_id Int        @id @default(autoincrement())
+  name        String     @db.VarChar(100)
+  description String?    @db.Text
+  products    products[]
+}
+
+model order_items {
+  order_item_id Int       @id @default(autoincrement())
+  order_id      Int?
+  product_id    Int?
+  vendor_id     Int?
+  quantity      Int
+  unit_price    Decimal   @db.Decimal(10, 2)
+  total_price   Decimal?  @db.Decimal(10, 2)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
+  orders        orders?   @relation(fields: [order_id], references: [order_id], onDelete: Cascade, onUpdate: NoAction, map: "order_items_ibfk_1")
+  products      products? @relation(fields: [product_id], references: [product_id], onUpdate: NoAction, map: "order_items_ibfk_2")
+  vendors       vendors?  @relation(fields: [vendor_id], references: [vendor_id], onUpdate: NoAction, map: "order_items_ibfk_3")
+
+  @@index([order_id], map: "order_id")
+  @@index([product_id], map: "product_id")
+  @@index([vendor_id], map: "vendor_id")
+}
+
+model product_images {
+  image_id   Int       @id @default(autoincrement())
+  product_id Int?
+  image_url  String    @db.VarChar(255)
+  is_main    Boolean?  @default(false)
+  products   products? @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction, map: "product_images_ibfk_1")
+
+  @@index([product_id], map: "product_id")
+}
+
+model products {
+  product_id     Int              @id @default(autoincrement())
+  category_id    Int?
+  vendor_id      Int?
+  name           String           @db.VarChar(100)
+  description    String?          @db.Text
+  price          Decimal          @db.Decimal(10, 2)
+  weight         String?          @db.VarChar(50)
+  stock_status   String?          @default("Available") @db.VarChar(50)
+  rating         Decimal?         @default(5.00) @db.Decimal(3, 2)
+  created_at     DateTime?        @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?        @default(now()) @db.Timestamp(0)
+  order_items    order_items[]
+  product_images product_images[]
+  categories     categories?      @relation(fields: [category_id], references: [category_id], onUpdate: NoAction, map: "products_ibfk_1")
+  vendors        vendors?         @relation(fields: [vendor_id], references: [vendor_id], onUpdate: NoAction, map: "products_ibfk_2")
+  reviews        reviews[]
+
+  @@index([category_id], map: "category_id")
+  @@index([vendor_id], map: "vendor_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reviews {
+  review_id   Int       @id @default(autoincrement())
+  product_id  Int?
+  user_id     Int?
+  rating      Int?
+  review_text String?   @db.Text
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  products    products? @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction, map: "reviews_ibfk_1")
+
+  @@index([product_id], map: "product_id")
+}
+
+model sessions {
+  session_id Int       @id @default(autoincrement())
+  user_id    Int?
+  token      String?   @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  expires_at DateTime? @db.Timestamp(0)
+  users      users?    @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "sessions_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model vendors {
+  vendor_id    Int           @id @default(autoincrement())
+  name         String        @db.VarChar(100)
+  location     String?       @db.VarChar(100)
+  contact_info String?       @db.VarChar(100)
+  order_items  order_items[]
+  products     products[]
+}
+
+enum payments_payment_method {
+  QR_Code          @map("QR Code")
+  E_Banking        @map("E-Banking")
+  Credit_Card      @map("Credit Card")
+  Cash_on_Delivery @map("Cash on Delivery")
+}
+
+enum orders_order_status {
+  Pending
+  Processing
+  Completed
+  Cancelled
+}
+
+enum payments_payment_status {
+  Pending
+  Completed
+  Failed
+}
+
+enum users_login_method {
+  email
+  phone
+}
